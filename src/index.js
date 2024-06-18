@@ -10,39 +10,48 @@ const loadMoreBtn = document.querySelector('.load-more');
 searchForm.addEventListener('submit', handlerSubmitForm);
 loadMoreBtn.addEventListener('click', onClickLoadMore);
 
-let numberPage = 1;
+const arrSearchCard = [];
+let totalImages = null;
+let numberPage = null;
 let inputValue = null;
 const perPage = 10;
 
 async function handlerSubmitForm(e) {
   e.preventDefault();
-
-  inputValue = e.target.elements.searchQuery.value;
-  numberPage = 1;
   galleryEl.innerHTML = '';
-  loadMoreBtn.classList.add('is-hidden');
+  arrSearchCard.splice(0, arrSearchCard.length);
+  numberPage = 1;
+  inputValue = e.target.elements.searchQuery.value;
+
+  await getAllImages(inputValue, numberPage, perPage);
+
+  if (inputValue === '' || arrSearchCard.length <= 0) {
+    Notify.warning('Please enter correct what you are looking for');
+    return;
+  } else {
+    Notify.success(`Hooray! We found ${totalImages} images.`);
+  }
+
+  if (numberPage * perPage < totalImages) {
+    loadMoreBtn.classList.remove('is-hidden');
+  }
+}
+
+async function getAllImages(inputValue, numberPage, perPage) {
   try {
-    await getImages();
-    console.log(totalHits);
-    if (hits.length === 0) {
-      Notify.failure(
-        'Sorry, there are no images matching your search query. Please try again.'
-      );
-      return;
-    }
-    Notify.success(`Hooray! We found ${totalHits} images.`);
-    if (numberPage * perPage >= totalHits) {
-      appendImagesMarkup(hits);
-      createSimpleLightbox();
-      loadMoreBtn.classList.add('is-hidden');
-      return;
-    }
+    const { hits, totalHits } = await getImagesBySearchParam(
+      inputValue,
+      numberPage,
+      perPage
+    );
+
+    totalImages = totalHits;
+    arrSearchCard.push(...hits);
 
     appendImagesMarkup(hits);
     createSimpleLightbox();
-    loadMoreBtn.classList.remove('is-hidden');
-  } catch (e) {
-    console.log(e);
+  } catch (error) {
+    console.log(error);
   }
 }
 
@@ -86,34 +95,17 @@ function appendImagesMarkup(hits) {
 }
 
 async function onClickLoadMore() {
-  try {
-    numberPage += 1;
-    getImages();
-    if (numberPage * perPage >= totalHits) {
-      appendImagesMarkup(hits);
-      createSimpleLightbox();
-      loadMoreBtn.classList.add('is-hidden');
-      Notify.info("We're sorry, but you've reached the end of search results.");
-      return;
-    }
-    appendImagesMarkup(hits);
-    createSimpleLightbox();
+  numberPage += 1;
+  await getAllImages(inputValue, numberPage, perPage);
+  if (numberPage * perPage >= totalImages) {
+    loadMoreBtn.classList.add('is-hidden');
+    Notify.info("We're sorry, but you've reached the end of search results.");
+    return;
+  } else {
     loadMoreBtn.classList.remove('is-hidden');
-  } catch (e) {
-    console.log(e);
   }
 }
 
 function createSimpleLightbox() {
-  const lightbox = new SimpleLightbox('.gallery a');
+  const lightbox = new SimpleLightbox('.gallery a').refresh();
 }
-
-async function getImages() {
-  return ({ hits, totalHits } = await getImagesBySearchParam(
-    inputValue,
-    numberPage,
-    perPage
-  ));
-}
-
-console.log(getImages());
